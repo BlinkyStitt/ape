@@ -55,3 +55,8 @@ jobs:
               branch: gh-pages
               directory: gh-pages
               github_token: ${{ secrets.GITHUB_TOKEN }}
+
+# Superseded PR validation must not hold runner capacity.
+concurrency:
+  group: pr-ci-docs.yaml-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
