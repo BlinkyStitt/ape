@@ -11,13 +11,12 @@ concurrency:
 
 jobs:
     linting:
-        runs-on: ubuntu-latest
-
+        runs-on: ubuntu-22.04
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: "3.10"
 
@@ -39,13 +38,12 @@ jobs:
           run: mdformat . --check
 
     type-check:
-        runs-on: ubuntu-latest
-
+        runs-on: ubuntu-22.04
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: "3.10"
 
@@ -58,7 +56,7 @@ jobs:
           run: mypy .
 
     functional:
-        runs-on: ${{ matrix.os }}
+        runs-on: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu-22.04' || matrix.os == 'macos-latest' && (matrix.python-version == '3.8' || matrix.python-version == '3.9') && 'macos-15-intel' || matrix.os }}
 
         strategy:
             matrix:
@@ -70,23 +68,23 @@ jobs:
           GETH_VERSION: 1.12.0
 
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
           with:
             fetch-depth: 0
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: ${{ matrix.python-version }}
 
         - name: Setup Go
-          uses: actions/setup-go@v4
+          uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
           with:
             go-version: '^1.20.1'
 
         - name: Cache Geth
           id: cache-geth
-          uses: actions/cache@v3
+          uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
           with:
             path: $HOME/.local/bin
             key: ${{ runner.os }}-geth-${{ env.GETH_VERSION }}
@@ -112,16 +110,15 @@ jobs:
           run: pytest -m "not fuzzing" -s --cov=src -n auto --dist loadscope
 
     fuzzing:
-        runs-on: ubuntu-latest
-
+        runs-on: ubuntu-22.04
         strategy:
             fail-fast: true
 
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: "3.10"
 
