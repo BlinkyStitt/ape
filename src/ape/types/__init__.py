@@ -141,7 +141,8 @@ class LogFilter(BaseModel):
 
         return convert(value, AddressType)
 
-    def dict(self, client=None):
+    # This public serializer returns RPC filter parameters, not model fields.
+    def dict(self, client=None):  # type: ignore[override]
         return FilterParams(
             address=self.addresses,
             fromBlock=hex(self.start_block),  # type: ignore

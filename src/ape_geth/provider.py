@@ -115,7 +115,7 @@ class GethDevProcess(BaseGethProcess):
         alloc = {a: bal_dict for a in addresses}
         genesis_data: Dict = {
             "overwrite": True,
-            "coinbase": "0x0000000000000000000000000000000000000000",
+            "coinbase": add_0x_prefix(sealer),
             "difficulty": "0x0",
             "extraData": f"0x{'0' * 64}{sealer}{'0' * 130}",
             "config": {

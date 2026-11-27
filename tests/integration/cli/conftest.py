@@ -1,9 +1,9 @@
 import subprocess
 import sys
 from contextlib import contextmanager
-from distutils.dir_util import copy_tree
 from importlib import import_module
 from pathlib import Path
+from shutil import copytree
 from typing import Dict, List, Optional
 
 import pytest
@@ -96,7 +96,7 @@ def project_dir_map(project_folder):
 
             project_source_dir = __projects_directory__ / name
             project_dest_dir = project_folder / project_source_dir.name
-            copy_tree(str(project_source_dir), str(project_dest_dir))
+            copytree(project_source_dir, project_dest_dir, dirs_exist_ok=True)
             self.project_map[name] = project_dest_dir
             return self.project_map[name]
 

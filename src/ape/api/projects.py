@@ -1,7 +1,7 @@
 import os.path
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast
 
 from ethpm_types import Checksum, ContractType, PackageManifest, Source
 from ethpm_types.manifest import PackageName
@@ -177,7 +177,7 @@ class ProjectAPI(BaseInterfaceModel):
         initial_manifest: Optional[PackageManifest] = None,
     ) -> PackageManifest:
         manifest = initial_manifest or PackageManifest()
-        manifest.name = PackageName(name.lower()) if name is not None else manifest.name
+        manifest.name = cast(PackageName, name.lower()) if name is not None else manifest.name
         manifest.version = version or manifest.version
         manifest.sources = cls._create_source_dict(source_paths, contracts_path)
         manifest.contract_types = contract_types
@@ -427,7 +427,9 @@ class DependencyAPI(BaseInterfaceModel):
             dependencies_config: List[Dict] = []
             dependencies = manifest.dependencies or {}
             dependencies_used = {
-                p: d for p, d in dependencies.items() if any(p.lower() in x for x in packages_used)
+                p: d
+                for p, d in dependencies.items()
+                if any(str(p).lower() in x for x in packages_used)
             }
             for package_name, uri in dependencies_used.items():
                 if "://" not in str(uri) and hasattr(uri, "scheme"):

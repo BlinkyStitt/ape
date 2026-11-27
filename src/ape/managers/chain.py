@@ -1540,7 +1540,7 @@ class ChainManager(BaseManager):
         return self.provider.get_block("pending").timestamp
 
     @pending_timestamp.setter
-    def pending_timestamp(self, new_value: str):
+    def pending_timestamp(self, new_value: Union[str, int]):
         self.provider.set_timestamp(self.conversion_manager.convert(value=new_value, type=int))
 
     def __repr__(self) -> str:

@@ -11,7 +11,7 @@ class QueryPlugin(PluginType):
     A plugin for querying chains.
     """
 
-    @hookspec  # type: ignore[empty-body]
+    @hookspec
     def query_engines(self) -> Iterator[Type["QueryAPI"]]:
         """
         A hook that returns an iterator of types of a ``QueryAPI`` subclasses
@@ -25,3 +25,4 @@ class QueryPlugin(PluginType):
         Returns:
             Iterator[Type[:class:`~ape.api.query.QueryAPI`]]
         """
+        raise NotImplementedError("Plugin hooks must be implemented by a plugin.")

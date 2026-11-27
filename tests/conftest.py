@@ -1,7 +1,9 @@
 import json
+import os
 import shutil
 import tempfile
 from contextlib import contextmanager
+from importlib.metadata import version
 from pathlib import Path
 from tempfile import mkdtemp
 from typing import Dict, Optional
@@ -27,6 +29,21 @@ pytest_plugins = ["pytester"]
 geth_process_test = pytest.mark.xdist_group(name="geth-tests")
 GETH_URI = "http://127.0.0.1:5550"
 ALIAS = "__FUNCTIONAL_TESTS_ALIAS__"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def preserve_tested_core_version(tmp_path_factory):
+    """Plugin install tests must exercise this fork for the entire test session."""
+    core_version = version("eth-ape")
+    constraint = tmp_path_factory.mktemp("core-constraints") / "constraints.txt"
+    constraint.write_text(f"eth-ape=={core_version}\n")
+    constraints = " ".join(
+        value for value in [os.environ.get("PIP_CONSTRAINT"), str(constraint)] if value
+    )
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("PIP_CONSTRAINT", constraints)
+        yield
+        assert version("eth-ape") == core_version, "Plugin tests replaced the SDK under test"
 
 
 @pytest.fixture(autouse=True)

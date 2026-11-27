@@ -50,7 +50,7 @@ class PluginConfig(BaseSettings):
     def __contains__(self, key: str) -> bool:
         return key in self.__dict__
 
-    def get(self, key: str, default: Optional[T] = None) -> T:
+    def get(self, key: str, default: Optional[T] = None) -> Any:
         return self.__dict__.get(key, default)
 
 

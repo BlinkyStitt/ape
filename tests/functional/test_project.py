@@ -8,6 +8,7 @@ from ethpm_types import ContractType, Source
 from ethpm_types.manifest import PackageManifest
 
 from ape import Contract
+from ape.api import ProjectAPI
 from ape.exceptions import ProjectError
 from ape.managers.project import BrownieProject
 
@@ -387,3 +388,9 @@ def test_getattr_contract_not_exists(project):
     contract.touch()
     with pytest.raises(AttributeError, match=expected):
         _ = project.ThisIsNotAContractThatExists
+
+
+@pytest.mark.parametrize("name", ["my-package", "MY-PACKAGE", "__FooDep__"])
+def test_manifest_preserves_project_name_aliases(name, tmp_path):
+    manifest = ProjectAPI._create_manifest([], tmp_path, {}, name=name)
+    assert manifest.name == name.lower()
