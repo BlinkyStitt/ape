@@ -5,7 +5,7 @@ from typing import Optional
 import pytest
 
 from ape.pytest.fixtures import PytestApeFixtures
-from tests.conftest import GETH_URI, geth_process_test
+from tests.conftest import geth_process_test
 from tests.integration.cli.utils import skip_projects_except
 
 BASE_PROJECTS_PATH = Path(__file__).parent / "projects"
@@ -38,12 +38,6 @@ EXPECTED_GAS_REPORT = rf"""
   transfer +\d +\d+ + \d+ + \d+ + \d+
 {TOKEN_B_GAS_REPORT}
 """
-GETH_LOCAL_CONFIG = f"""
-geth:
-  ethereum:
-    local:
-      uri: {GETH_URI}
-"""
 
 
 def filter_expected_methods(*methods_to_remove: str) -> str:
@@ -62,7 +56,7 @@ def load_dependencies(project):
 
 
 @pytest.fixture
-def setup_pytester(pytester):
+def setup_pytester(pytester, geth_uri):
     def setup(project_name: str):
         project_path = BASE_PROJECTS_PATH / project_name
         tests_path = project_path / "tests"
@@ -100,6 +94,12 @@ def setup_pytester(pytester):
 
         _make_all_files(project_path)
 
+        if project_name == "geth":
+            config_file = pytester.path / "ape-config.yaml"
+            config_file.write_text(
+                config_file.read_text().replace("http://127.0.0.1:5550", geth_uri)
+            )
+
         # Check for a conftest.py
         conftest = tests_path / "conftest.py"
         if conftest.is_file():
@@ -114,9 +114,10 @@ def setup_pytester(pytester):
 def run_gas_test(
     result, expected_passed: int, expected_failed: int, expected_report: str = EXPECTED_GAS_REPORT
 ):
-    result.assert_outcomes(passed=expected_passed, failed=expected_failed), "\n".join(
-        result.outlines
-    )
+    try:
+        result.assert_outcomes(passed=expected_passed, failed=expected_failed)
+    except AssertionError as err:
+        raise AssertionError("\n".join(result.outlines)) from err
     gas_header_line_index = None
     for index, line in enumerate(result.outlines):
         if "Gas Profile" in line:
@@ -230,7 +231,7 @@ def test_gas_flag_set_in_config(geth_provider, setup_pytester, project, pytester
     geth:
       ethereum:
         local:
-          uri: {GETH_URI}
+          uri: {geth_provider.http_uri}
 
     test:
       disconnect_providers_after: false
@@ -269,7 +270,7 @@ def test_gas_flag_exclusions_set_in_config(
     geth:
       ethereum:
         local:
-          uri: {GETH_URI}
+          uri: {geth_provider.http_uri}
 
     test:
       disconnect_providers_after: false

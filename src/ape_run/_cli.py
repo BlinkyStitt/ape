@@ -63,7 +63,7 @@ def run_script_module(script_path: Path):
 class ScriptCommand(click.MultiCommand):
     def __init__(self, *args, **kwargs):
         if "result_callback" not in kwargs:
-            kwargs["result_callback"] = self.result_callback
+            kwargs["result_callback"] = self._handle_result
 
         super().__init__(*args, **kwargs)
         self._namespace = {}
@@ -226,7 +226,7 @@ class ScriptCommand(click.MultiCommand):
 
         # NOTE: don't return anything so Click displays proper error
 
-    def result_callback(self, result, interactive):
+    def _handle_result(self, result, interactive):
         if interactive:
             return self._launch_console()
 

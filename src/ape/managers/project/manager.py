@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union, cast
 
 from ethpm_types import ContractInstance as EthPMContractInstance
 from ethpm_types import ContractType, PackageManifest, PackageMeta, Source
@@ -278,7 +278,7 @@ class ProjectManager(BaseManager):
         package_dependencies: Dict[PackageName, AnyUrl] = {}
         for dependency_config in self.config_manager.dependencies:
             package_name = dependency_config.name.replace("_", "-").lower()
-            package_dependencies[PackageName(package_name)] = dependency_config.uri
+            package_dependencies[cast(PackageName, package_name)] = dependency_config.uri
 
         return package_dependencies
 

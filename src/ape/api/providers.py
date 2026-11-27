@@ -20,6 +20,7 @@ from eth_typing import BlockNumber, HexStr
 from eth_utils import add_0x_prefix, to_hex
 from ethpm_types import HexBytes
 from evm_trace import CallTreeNode as EvmCallTreeNode
+from evm_trace import CallType as EvmCallType
 from evm_trace import TraceFrame as EvmTraceFrame
 from pydantic import Field, root_validator, validator
 from web3 import Web3
@@ -1486,7 +1487,7 @@ class Web3Provider(ProviderAPI, ABC):
             # Use raw value since it is not a real address.
             contract_id = address.hex()
 
-        call_type = evm_call.call_type.value
+        call_type = EvmCallType(evm_call.call_type).value
         return CallTreeNode(
             calls=[self._create_call_tree_node(x, txn_hash=txn_hash) for x in evm_call.calls],
             call_type=call_type,
@@ -1594,7 +1595,14 @@ class Web3Provider(ProviderAPI, ABC):
         trace: Optional[Iterator[TraceFrame]] = None,
         contract_address: Optional[AddressType] = None,
     ) -> ContractLogicError:
-        message = str(exception).split(":")[-1].strip()
+        raw_message = (
+            exception.args[0]
+            if isinstance(exception, Web3ContractLogicError)
+            and exception.args
+            and isinstance(exception.args[0], str)
+            else str(exception)
+        )
+        message = raw_message.split(":")[-1].strip()
         params: Dict = {"trace": trace, "contract_address": contract_address}
         no_reason = message == "execution reverted"
 

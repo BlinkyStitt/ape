@@ -1,3 +1,4 @@
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -5,6 +6,11 @@ from typing import List, cast
 
 import pytest
 from eth_typing import HexStr
+from evm_trace import CallTreeNode as EvmCallTreeNode
+from evm_trace import CallType as EvmCallType
+from geth.chain import write_genesis_file  # type: ignore[import-untyped]
+from hexbytes import HexBytes
+from web3.exceptions import ContractLogicError as Web3ContractLogicError
 
 from ape.exceptions import (
     BlockNotFoundError,
@@ -14,8 +20,8 @@ from ape.exceptions import (
     TransactionNotFoundError,
 )
 from ape_ethereum.ecosystem import Block
-from ape_geth.provider import Geth
-from tests.conftest import GETH_URI, geth_process_test
+from ape_geth.provider import Geth, GethDevProcess
+from tests.conftest import geth_process_test
 from tests.functional.data.python import TRACE_RESPONSE
 
 TRANSACTION_HASH = "0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d"
@@ -118,10 +124,10 @@ def geth_vyper_receipt(geth_vyper_contract, owner):
 
 
 @geth_process_test
-def test_uri(geth_provider):
-    assert geth_provider.http_uri == GETH_URI
+def test_uri(geth_provider, geth_uri):
+    assert geth_provider.http_uri == geth_uri
     assert not geth_provider.ws_uri
-    assert geth_provider.uri == GETH_URI
+    assert geth_provider.uri == geth_uri
 
 
 @geth_process_test
@@ -524,3 +530,63 @@ def test_out_of_gas_error(geth_contract, geth_account, geth_provider):
 def test_gas_price(geth_provider):
     actual = geth_provider.gas_price
     assert isinstance(actual, int)
+
+
+def test_genesis_writer_authorizes_the_mining_account(mocker, tmp_path):
+    sealer = "a67f0ecaf9e8654404d0370286f3fa9b9181937b"
+    mocker.patch("ape_geth.provider.shutil.which", return_value="geth")
+    mocker.patch(
+        "ape_geth.provider.construct_test_chain_kwargs",
+        return_value={"data_dir": tmp_path / "node"},
+    )
+    mocker.patch("ape_geth.provider.ensure_account_exists", return_value=sealer.encode())
+    initialize = mocker.patch("ape_geth.provider.initialize_chain")
+    mocker.patch("ape_geth.provider.BaseGethProcess.__init__", return_value=None)
+
+    GethDevProcess(tmp_path / "node")
+    genesis = initialize.call_args.args[0]
+    output = tmp_path / "genesis.json"
+    write_genesis_file(str(output), **genesis)
+    written = json.loads(output.read_text())
+
+    # py-geth constructs extraData from coinbase, even when extraData is supplied.
+    assert written["coinbase"].lower() == "0x" + sealer
+    assert written["extraData"][66:106].lower() == sealer
+    assert initialize.call_args.kwargs["miner_etherbase"] == sealer
+
+
+@pytest.mark.parametrize(
+    "message,data,expected",
+    [
+        ("execution reverted", "no data", "Transaction failed."),
+        ("execution reverted: denied", "0x", "denied"),
+    ],
+)
+def test_web3_revert_message_uses_revert_reason(mock_geth, message, data, expected):
+    error = mock_geth.get_virtual_machine_error(Web3ContractLogicError(message, data))
+    assert str(error) == expected
+
+
+def test_call_tree_accepts_serialized_call_type(mock_geth, zero_address):
+    source = EvmCallTreeNode(
+        call_type=EvmCallType.CALL,
+        address=HexBytes(zero_address),
+        calldata=HexBytes("0x12345678"),
+        gas_cost=0,
+    )
+    assert source.call_type == "CALL"
+    actual = mock_geth._create_call_tree_node(source)
+    assert actual.call_type == "CALL"
+    assert actual.method_id == "0x12345678"
+
+
+@geth_process_test
+def test_future_snapshot_does_not_rewind_the_chain(geth_provider, mocker):
+    height = geth_provider.get_block("latest").number
+    assert height is not None
+    rpc = mocker.spy(type(geth_provider), "_make_request")
+
+    geth_provider.revert(height + 1)
+
+    assert not any(call.args[1] == "debug_setHead" for call in rpc.call_args_list)
+    assert geth_provider.get_block("latest").number == height

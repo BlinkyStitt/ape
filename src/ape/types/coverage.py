@@ -665,6 +665,8 @@ class CoverageReport(BaseModel):
 
         xml_out = impl.createDocument(None, "coverage", None)
         xcoverage = xml_out.documentElement
+        if xcoverage is None:
+            raise ValueError("Coverage XML document has no root element.")
 
         # Unable to use too exotic of a version.
         xversion = ape_version.split(".dev")[0].strip()

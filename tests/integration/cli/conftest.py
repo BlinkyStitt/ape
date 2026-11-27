@@ -1,9 +1,9 @@
 import subprocess
 import sys
 from contextlib import contextmanager
-from distutils.dir_util import copy_tree
 from importlib import import_module
 from pathlib import Path
+from shutil import copytree
 from typing import Dict, List, Optional
 
 import pytest
@@ -96,7 +96,7 @@ def project_dir_map(project_folder):
 
             project_source_dir = __projects_directory__ / name
             project_dest_dir = project_folder / project_source_dir.name
-            copy_tree(str(project_source_dir), str(project_dest_dir))
+            copytree(project_source_dir, project_dest_dir, dirs_exist_ok=True)
             self.project_map[name] = project_dest_dir
             return self.project_map[name]
 
@@ -104,8 +104,11 @@ def project_dir_map(project_folder):
 
 
 @pytest.fixture(autouse=True, params=__project_names__)
-def project(request, config, project_dir_map):
+def project(request, config, project_dir_map, geth_uri):
     project_dir = project_dir_map.load(request.param)
+    if request.param == "geth":
+        config_file = project_dir / CONFIG_FILE_NAME
+        config_file.write_text(config_file.read_text().replace("http://127.0.0.1:5550", geth_uri))
     with config.using_project(project_dir) as project:
         yield project
 

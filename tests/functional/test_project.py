@@ -8,6 +8,7 @@ from ethpm_types import ContractType, Source
 from ethpm_types.manifest import PackageManifest
 
 from ape import Contract
+from ape.api import ProjectAPI
 from ape.exceptions import ProjectError
 from ape.managers.project import BrownieProject
 
@@ -364,17 +365,19 @@ def test_sources(project_with_source_files_contract):
     assert project.sources["ApeContract0.json"].content
 
 
-def test_contracts_folder(project, config):
-    # Relaxed to handle xdist resource sharing.
-    assert project.contracts_folder.name == "contracts"
+def test_contracts_folder(temp_config, config):
+    # Own the workspace; earlier discovery tests can select a renamed source folder.
+    with temp_config() as project:
+        expected = project.path / "contracts"
+        assert project.contracts_folder == expected
 
-    # Show that even when None in the config, it won't be None here.
-    config.contracts_folder = None
-    assert config.contracts_folder is None
-    assert project.contracts_folder is not None
+        # An explicit None still falls back to this project's contracts directory.
+        config.contracts_folder = None
+        assert config.contracts_folder is None
+        assert project.contracts_folder == expected
 
 
-def test_getattr_contract_not_exists(project):
+def test_getattr_contract_not_exists(temp_config):
     expected = (
         r"ProjectManager has no attribute or contract named "
         r"'ThisIsNotAContractThatExists'. However, there is a source "
@@ -382,8 +385,15 @@ def test_getattr_contract_not_exists(project):
         r"reference a contract name from this source file\? "
         r"Else, could it be from one of the missing compilers for extensions:.*\?"
     )
-    project.contracts_folder.mkdir(exist_ok=True)
-    contract = project.contracts_folder / "ThisIsNotAContractThatExists.foo"
-    contract.touch()
-    with pytest.raises(AttributeError, match=expected):
-        _ = project.ThisIsNotAContractThatExists
+    with temp_config() as project:
+        project.contracts_folder.mkdir(exist_ok=True)
+        contract = project.contracts_folder / "ThisIsNotAContractThatExists.foo"
+        contract.touch()
+        with pytest.raises(AttributeError, match=expected):
+            _ = project.ThisIsNotAContractThatExists
+
+
+@pytest.mark.parametrize("name", ["my-package", "MY-PACKAGE", "__FooDep__"])
+def test_manifest_preserves_project_name_aliases(name, tmp_path):
+    manifest = ProjectAPI._create_manifest([], tmp_path, {}, name=name)
+    assert manifest.name == name.lower()

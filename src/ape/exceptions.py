@@ -716,6 +716,8 @@ class CustomError(ContractLogicError):
     An error defined in a smart contract.
     """
 
+    abi: ErrorABI
+
     def __init__(
         self,
         abi: ErrorABI,

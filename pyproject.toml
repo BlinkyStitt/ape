@@ -40,3 +40,13 @@ use_parentheses = true
 
 [tool.mdformat]
 number = true
+
+[tool.coverage.run]
+source_pkgs = [
+    "ape", "ape_accounts", "ape_cache", "ape_compile", "ape_console",
+    "ape_ethereum", "ape_geth", "ape_init", "ape_networks", "ape_plugins",
+    "ape_pm", "ape_run", "ape_test",
+]
+
+[tool.coverage.paths]
+source = ["src", "*/site-packages"]

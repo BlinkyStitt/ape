@@ -1,4 +1,7 @@
-on: ["push", "pull_request"]
+on:
+    push:
+        branches: [main]
+    pull_request:
 
 name: Test
 
@@ -6,18 +9,17 @@ concurrency:
   # Cancel older, in-progress jobs from the same PR, same workflow.
   # use run_id if the job is triggered by a push to ensure
   # push-triggered jobs to not get canceled.
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: "${{ github.event_name == 'pull_request' && format('pr-ci-test.yaml-pull_request-{0}', github.event.number || github.run_id) || format('{0}-{1}', github.workflow, github.head_ref || github.run_id) }}"
   cancel-in-progress: true
 
 jobs:
     linting:
-        runs-on: ubuntu-latest
-
+        runs-on: ubuntu-22.04
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: "3.10"
 
@@ -39,13 +41,12 @@ jobs:
           run: mdformat . --check
 
     type-check:
-        runs-on: ubuntu-latest
-
+        runs-on: ubuntu-22.04
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: "3.10"
 
@@ -58,7 +59,7 @@ jobs:
           run: mypy .
 
     functional:
-        runs-on: ${{ matrix.os }}
+        runs-on: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu-22.04' || matrix.os == 'macos-latest' && (matrix.python-version == '3.8' || matrix.python-version == '3.9') && 'macos-15-intel' || matrix.os }}
 
         strategy:
             matrix:
@@ -68,28 +69,30 @@ jobs:
         env:
           GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GETH_VERSION: 1.12.0
+          GO_VERSION: 1.20.14
 
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
           with:
             fetch-depth: 0
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: ${{ matrix.python-version }}
 
         - name: Setup Go
-          uses: actions/setup-go@v4
+          uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
           with:
-            go-version: '^1.20.1'
+            go-version: ${{ env.GO_VERSION }}
+            cache: false
 
         - name: Cache Geth
           id: cache-geth
-          uses: actions/cache@v3
+          uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
           with:
-            path: $HOME/.local/bin
-            key: ${{ runner.os }}-geth-${{ env.GETH_VERSION }}
+            path: ~/.local/bin/geth
+            key: geth-v2-${{ runner.os }}-${{ runner.arch }}-${{ env.GO_VERSION }}-${{ env.GETH_VERSION }}
 
         - name: Install Geth
           if: steps.cache-geth.outputs.cache-hit != 'true'
@@ -99,8 +102,19 @@ jobs:
             tar -zxvf geth.tar.gz
             cd go-ethereum-$GETH_VERSION
             make geth
-            cp ./build/bin/geth /usr/local/bin
-            geth version
+            cp ./build/bin/geth "$HOME/.local/bin/geth"
+
+        - name: Use installed Geth
+          run: |
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            "$HOME/.local/bin/geth" version
+
+        - name: Save verified Geth before running tests
+          if: steps.cache-geth.outputs.cache-hit != 'true'
+          uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+          with:
+            path: ~/.local/bin/geth
+            key: ${{ steps.cache-geth.outputs.cache-primary-key }}
 
         - name: Install Dependencies
           run: |
@@ -109,19 +123,35 @@ jobs:
             pip install .[test]
 
         - name: Run Tests
-          run: pytest -m "not fuzzing" -s --cov=src -n auto --dist loadscope
+          run: pytest -m "not fuzzing" -s --cov --cov-report=term --cov-report=xml -n auto --dist loadscope
+
+        - name: Require executed SDK coverage
+          run: |
+            python - <<'PY_COVERAGE'
+            import xml.etree.ElementTree as ET
+            report = ET.parse("coverage.xml").getroot()
+            assert int(report.attrib["lines-valid"]) > 0, "No SDK lines were measured"
+            assert int(report.attrib["lines-covered"]) > 0, "No SDK lines were executed"
+            PY_COVERAGE
+
+        - name: Retain SDK coverage
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+          with:
+            name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
+            path: coverage.xml
+            if-no-files-found: error
+            retention-days: 7
 
     fuzzing:
-        runs-on: ubuntu-latest
-
+        runs-on: ubuntu-22.04
         strategy:
             fail-fast: true
 
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
         - name: Setup Python
-          uses: actions/setup-python@v4
+          uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
           with:
               python-version: "3.10"
 

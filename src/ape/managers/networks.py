@@ -44,7 +44,7 @@ class NetworkManager(BaseManager):
         return self._active_provider
 
     @active_provider.setter
-    def active_provider(self, new_value: ProviderAPI):
+    def active_provider(self, new_value: Optional[ProviderAPI]):
         self._active_provider = new_value
 
     @property

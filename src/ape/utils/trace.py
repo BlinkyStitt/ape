@@ -260,7 +260,7 @@ def _parse_verbose_coverage(coverage: "CoverageReport", statement: bool = True) 
                         # It is impossible to really track.
                         continue
 
-                    row = (
+                    row: Tuple[str, ...] = (
                         (
                             fn.name,
                             fn.full_name,
@@ -275,7 +275,7 @@ def _parse_verbose_coverage(coverage: "CoverageReport", statement: bool = True) 
 
                 # Handle cases where normal names are duplicated.
                 # Use full names in this case.
-                rows_corrected = []
+                rows_corrected: List[Tuple[str, ...]] = []
                 while rows:
                     row = rows.pop()
                     if row[0] in [r[0] for r in rows]:

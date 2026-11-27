@@ -93,7 +93,9 @@ setup(
     },
     include_package_data=True,
     install_requires=[
-        "click>=8.1.6,<9",
+        "setuptools<81",  # Legacy eth-keyfile requires pkg_resources at runtime.
+        "numpy<2",  # pandas 1.x wheels use the NumPy 1.x binary ABI.
+        "click>=8.1.6,<8.2",  # MultiCommand and dynamic read-only commands require Click 8.1.
         "ijson>=3.1.4,<4",
         "importlib-metadata",
         "ipython>=8.5.0,<9",
