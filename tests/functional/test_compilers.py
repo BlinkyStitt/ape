@@ -11,9 +11,10 @@ def test_get_imports(project, compilers):
     assert not compilers.get_imports(project.source_paths)
 
 
-def test_missing_compilers_without_source_files(project):
-    result = project.extensions_with_missing_compilers()
-    assert result == []
+def test_missing_compilers_without_source_files(temp_config):
+    with temp_config() as project:
+        result = project.extensions_with_missing_compilers()
+        assert result == []
 
 
 @skip_if_plugin_installed("vyper", "solidity")

@@ -1,5 +1,4 @@
 from ape.api.networks import LOCAL_NETWORK_NAME
-from tests.conftest import GETH_URI
 
 from .utils import run_once, skip_projects_except
 
@@ -108,7 +107,7 @@ def test_list_yaml(ape_cli, runner):
 
 
 @skip_projects_except("geth")
-def test_geth(ape_cli, runner, networks):
+def test_geth(ape_cli, runner, networks, geth_uri):
     result = runner.invoke(ape_cli, ["networks", "list"])
     assert_rich_text(result.output, _GETH_NETWORKS_TREE)
 
@@ -116,7 +115,7 @@ def test_geth(ape_cli, runner, networks):
     # (was bug where one network's URI disappeared when setting different network's URI)
     geth_provider = networks.get_provider_from_choice(f"ethereum:{LOCAL_NETWORK_NAME}:geth")
     actual = geth_provider.uri
-    assert actual == GETH_URI
+    assert actual == geth_uri
 
 
 @run_once

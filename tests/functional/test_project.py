@@ -377,7 +377,7 @@ def test_contracts_folder(temp_config, config):
         assert project.contracts_folder == expected
 
 
-def test_getattr_contract_not_exists(project):
+def test_getattr_contract_not_exists(temp_config):
     expected = (
         r"ProjectManager has no attribute or contract named "
         r"'ThisIsNotAContractThatExists'. However, there is a source "
@@ -385,11 +385,12 @@ def test_getattr_contract_not_exists(project):
         r"reference a contract name from this source file\? "
         r"Else, could it be from one of the missing compilers for extensions:.*\?"
     )
-    project.contracts_folder.mkdir(exist_ok=True)
-    contract = project.contracts_folder / "ThisIsNotAContractThatExists.foo"
-    contract.touch()
-    with pytest.raises(AttributeError, match=expected):
-        _ = project.ThisIsNotAContractThatExists
+    with temp_config() as project:
+        project.contracts_folder.mkdir(exist_ok=True)
+        contract = project.contracts_folder / "ThisIsNotAContractThatExists.foo"
+        contract.touch()
+        with pytest.raises(AttributeError, match=expected):
+            _ = project.ThisIsNotAContractThatExists
 
 
 @pytest.mark.parametrize("name", ["my-package", "MY-PACKAGE", "__FooDep__"])
