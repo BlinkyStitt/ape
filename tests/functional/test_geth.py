@@ -21,7 +21,7 @@ from ape.exceptions import (
 )
 from ape_ethereum.ecosystem import Block
 from ape_geth.provider import Geth, GethDevProcess
-from tests.conftest import GETH_URI, geth_process_test
+from tests.conftest import geth_process_test
 from tests.functional.data.python import TRACE_RESPONSE
 
 TRANSACTION_HASH = "0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d"
@@ -124,10 +124,10 @@ def geth_vyper_receipt(geth_vyper_contract, owner):
 
 
 @geth_process_test
-def test_uri(geth_provider):
-    assert geth_provider.http_uri == GETH_URI
+def test_uri(geth_provider, geth_uri):
+    assert geth_provider.http_uri == geth_uri
     assert not geth_provider.ws_uri
-    assert geth_provider.uri == GETH_URI
+    assert geth_provider.uri == geth_uri
 
 
 @geth_process_test
@@ -578,3 +578,15 @@ def test_call_tree_accepts_serialized_call_type(mock_geth, zero_address):
     actual = mock_geth._create_call_tree_node(source)
     assert actual.call_type == "CALL"
     assert actual.method_id == "0x12345678"
+
+
+@geth_process_test
+def test_future_snapshot_does_not_rewind_the_chain(geth_provider, mocker):
+    height = geth_provider.get_block("latest").number
+    assert height is not None
+    rpc = mocker.spy(type(geth_provider), "_make_request")
+
+    geth_provider.revert(height + 1)
+
+    assert not any(call.args[1] == "debug_setHead" for call in rpc.call_args_list)
+    assert geth_provider.get_block("latest").number == height

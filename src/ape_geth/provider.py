@@ -95,6 +95,8 @@ class GethDevProcess(BaseGethProcess):
             geth_executable=executable,
             rpc_addr=hostname,
             rpc_port=port,
+            # Local nodes do not need a shared P2P port; let the OS assign one.
+            port="0",
             network_id=chain_id,
             ws_enabled=False,
             ws_addr=None,
@@ -139,6 +141,9 @@ class GethDevProcess(BaseGethProcess):
         }
 
         initialize_chain(genesis_data, **geth_kwargs)
+        # The Engine API is unused by this local Clique chain. Avoid a shared
+        # listener on Geth's default port when multiple dev nodes run at once.
+        geth_kwargs["suffix_args"] = ["--authrpc.port", "0"]
         self.proc: Optional[Popen] = None
         super().__init__(geth_kwargs)
 
@@ -530,7 +535,7 @@ class GethDev(BaseGethProvider, TestProviderAPI, SubprocessProvider):
         if block_number_int == current_block:
             # Head is already at this block.
             return
-        elif block_number_int > block_number_int:
+        elif block_number_int > (current_block or 0):
             logger.error("Unable to set head to future block.")
             return
 

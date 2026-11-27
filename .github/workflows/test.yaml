@@ -123,7 +123,24 @@ jobs:
             pip install .[test]
 
         - name: Run Tests
-          run: pytest -m "not fuzzing" -s --cov=src -n auto --dist loadscope
+          run: pytest -m "not fuzzing" -s --cov --cov-report=term --cov-report=xml -n auto --dist loadscope
+
+        - name: Require executed SDK coverage
+          run: |
+            python - <<'PY_COVERAGE'
+            import xml.etree.ElementTree as ET
+            report = ET.parse("coverage.xml").getroot()
+            assert int(report.attrib["lines-valid"]) > 0, "No SDK lines were measured"
+            assert int(report.attrib["lines-covered"]) > 0, "No SDK lines were executed"
+            PY_COVERAGE
+
+        - name: Retain SDK coverage
+          uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+          with:
+            name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
+            path: coverage.xml
+            if-no-files-found: error
+            retention-days: 7
 
     fuzzing:
         runs-on: ubuntu-22.04

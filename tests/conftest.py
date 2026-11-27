@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import socket
 import tempfile
 from contextlib import contextmanager
 from importlib.metadata import version
@@ -202,12 +203,21 @@ def networks_connected_to_tester(eth_tester_provider):
     return eth_tester_provider.network_manager
 
 
+@pytest.fixture(scope="session")
+def geth_uri():
+    # Each xdist worker must own its node; rewinds must not affect other workers.
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    return f"http://127.0.0.1:{port}"
+
+
 @pytest.fixture
-def geth_provider(networks):
+def geth_provider(networks, geth_uri):
     if not networks.active_provider or networks.provider.name != "geth":
         test_acct_100 = "0x63c7f11162dBFC374DC6f5C0B3Aa26C618846a85"
         with networks.ethereum.local.use_provider(
-            "geth", provider_settings={"uri": GETH_URI, "extra_funded_accounts": [test_acct_100]}
+            "geth", provider_settings={"uri": geth_uri, "extra_funded_accounts": [test_acct_100]}
         ) as provider:
             yield provider
     else:
