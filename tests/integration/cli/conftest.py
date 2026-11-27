@@ -104,8 +104,11 @@ def project_dir_map(project_folder):
 
 
 @pytest.fixture(autouse=True, params=__project_names__)
-def project(request, config, project_dir_map):
+def project(request, config, project_dir_map, geth_uri):
     project_dir = project_dir_map.load(request.param)
+    if request.param == "geth":
+        config_file = project_dir / CONFIG_FILE_NAME
+        config_file.write_text(config_file.read_text().replace("http://127.0.0.1:5550", geth_uri))
     with config.using_project(project_dir) as project:
         yield project
 
